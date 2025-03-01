@@ -69,6 +69,16 @@
       border-radius: 8px;
       object-fit: cover;
     }
+    #searchingIndicator {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #fff;
+      font-size: 18px;
+      display: none;
+      z-index: 4;
+    }
     #controls {
       position: absolute;
       bottom: 30px;
@@ -90,15 +100,6 @@
       box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     }
     #controls button:active { transform: scale(0.98); }
-    #searchingIndicator {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      color: #fff;
-      font-size: 18px;
-      display: none;
-    }
   </style>
 </head>
 <body>
@@ -114,8 +115,8 @@
       <video id="remoteVideo" autoplay playsinline></video>
       <video id="localVideo" autoplay playsinline muted></video>
     </div>
+    <div id="searchingIndicator">جار البحث عن مستخدمين...</div>
     <div id="controls">
-      <div id="searchingIndicator">جار البحث عن مستخدمين...</div>
       <button id="startCameraBtn">ابدأ</button>
       <button id="changeUserBtn" style="display:none;">تغيير المستخدم</button>
     </div>
@@ -190,9 +191,9 @@
         localVideo.srcObject = stream;
         if (!myUid) {
           myUid = push(ref(database, "available")).key;
-          addToAvailable();
-          findPartner();
         }
+        addToAvailable();
+        findPartner();
         startCameraBtn.style.display = "none";
         changeUserBtn.style.display = "inline-block";
         searchingIndicator.style.display = "block";
