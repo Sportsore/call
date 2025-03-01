@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>تعارف فيديو عشوائي</title>
+  <title>تعارف مكالمة صوتية عشوائية</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body, html { width: 100%; height: 100%; font-family: Arial, sans-serif; }
@@ -24,12 +25,13 @@
       margin-bottom: 20px;
     }
     #registration h1 { margin-bottom: 20px; }
-    #registration input {
+    #registration input, #registration select {
       width: 80%;
       padding: 10px;
       margin: 10px 0;
       border: none;
       border-radius: 5px;
+      font-size: 16px;
     }
     #registration button {
       padding: 12px 25px;
@@ -47,44 +49,115 @@
       width: 100%;
       height: 100%;
       position: relative;
-      background: #000;
+      background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
     }
-    #videos {
-      width: 100%;
+    /* واجهة الصفحة الرئيسية */
+    #homeInterface {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       height: 100%;
-      position: relative;
+      color: #fff;
+      text-align: center;
+      padding: 20px;
     }
-    #remoteVideo {
-      width: 100%;
+    .app-logo {
+      font-size: 60px;
+      margin-bottom: 20px;
+    }
+    #homeInterface h1 {
+      font-size: 36px;
+      margin-bottom: 10px;
+    }
+    #homeInterface p {
+      font-size: 18px;
+      margin-bottom: 30px;
+    }
+    #logoutBtn {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 25px;
+      background: #fff;
+      color: #333;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    /* واجهة المكالمة */
+    #callInterface {
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
       height: 100%;
-      object-fit: cover;
-    }
-    #localVideo {
-      width: 120px;
-      height: 120px;
+      background: linear-gradient(135deg, #2c3e50, #4ca1af);
       position: absolute;
-      bottom: 20px;
-      right: 20px;
-      border: 2px solid #fff;
-      border-radius: 8px;
-      object-fit: cover;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 20px;
     }
-    #searchingIndicator {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
+    #partnerInfo {
+      color: #fff;
+      font-size: 22px;
+      margin-bottom: 5px;
+    }
+    #callDuration {
       color: #fff;
       font-size: 18px;
-      display: none;
-      z-index: 4;
+      margin-bottom: 20px;
     }
+    .call-avatar {
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      background: #fff;
+      overflow: hidden;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+    .call-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    #callControls {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+    }
+    #callControls button {
+      background: rgba(255,255,255,0.8);
+      border: none;
+      padding: 15px;
+      border-radius: 50%;
+      font-size: 24px;
+      cursor: pointer;
+      transition: background 0.3s;
+      width: 60px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #callControls button:hover {
+      background: rgba(255,255,255,1);
+    }
+    #callControls button.hangup {
+      background: #e74c3c;
+      color: #fff;
+    }
+    #callControls button.hangup:hover {
+      background: #c0392b;
+    }
+    /* أزرار التحكم في البحث والملاحة */
     #controls {
       position: absolute;
       bottom: 30px;
       left: 50%;
       transform: translateX(-50%);
-      z-index: 3;
+      z-index: 5;
       text-align: center;
       width: 100%;
     }
@@ -100,6 +173,19 @@
       box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     }
     #controls button:active { transform: scale(0.98); }
+    #backHomeBtn {
+      display: none;
+    }
+    #searchingIndicator {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #fff;
+      font-size: 20px;
+      display: none;
+      z-index: 4;
+    }
   </style>
 </head>
 <body>
@@ -107,19 +193,52 @@
     <img src="https://via.placeholder.com/100" alt="Logo">
     <h1>تسجيل المستخدم</h1>
     <input type="text" id="userName" placeholder="اسم المستخدم">
-    <input type="text" id="userCountry" placeholder="الدولة">
+    <select id="userCountry">
+      <option value="">اختر الدولة</option>
+      <option value="المملكة العربية السعودية">المملكة العربية السعودية</option>
+      <option value="الإمارات العربية المتحدة">الإمارات العربية المتحدة</option>
+      <option value="مصر">مصر</option>
+      <option value="الأردن">الأردن</option>
+      <option value="لبنان">لبنان</option>
+      <option value="الكويت">الكويت</option>
+      <option value="قطر">قطر</option>
+      <option value="عمان">عمان</option>
+      <option value="البحرين">البحرين</option>
+      <option value="المغرب">المغرب</option>
+      <option value="الجزائر">الجزائر</option>
+      <option value="تونس">تونس</option>
+    </select>
     <button id="registerBtn">التالي</button>
   </div>
   <div id="app">
-    <div id="videos">
-      <video id="remoteVideo" autoplay playsinline></video>
-      <video id="localVideo" autoplay playsinline muted></video>
+    <!-- الواجهة الرئيسية -->
+    <div id="homeInterface">
+      <div class="app-logo"><i class="fas fa-phone-alt"></i></div>
+      <h1>تعارف مكالمة صوتية</h1>
+      <p>تواصل مع أشخاص من جميع الدول العربية والمزيد</p>
+      <button id="logoutBtn">تسجيل الخروج</button>
+    </div>
+    <!-- واجهة المكالمة -->
+    <div id="callInterface">
+      <div id="partnerInfo"></div>
+      <div id="callDuration"></div>
+      <div class="call-avatar">
+        <img src="https://via.placeholder.com/150" alt="Avatar">
+      </div>
+      <div id="callControls">
+        <button id="muteBtn"><i class="fas fa-microphone"></i></button>
+        <button id="speakerBtn"><i class="fas fa-volume-up"></i></button>
+        <button id="hangupBtn" class="hangup"><i class="fas fa-phone-slash"></i></button>
+      </div>
     </div>
     <div id="searchingIndicator">جار البحث عن مستخدمين...</div>
+    <!-- أزرار التحكم -->
     <div id="controls">
-      <button id="startCameraBtn">ابدأ</button>
+      <button id="startAudioBtn">ابدأ</button>
       <button id="changeUserBtn" style="display:none;">تغيير المستخدم</button>
+      <button id="backHomeBtn" style="display:none;"><i class="fas fa-home"></i> الرئيسية</button>
     </div>
+    <audio id="remoteAudio" autoplay playsinline></audio>
   </div>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
@@ -145,13 +264,15 @@
     const appDiv = document.getElementById("app");
     const registerBtn = document.getElementById("registerBtn");
     const userNameInput = document.getElementById("userName");
-    const userCountryInput = document.getElementById("userCountry");
+    const userCountrySelect = document.getElementById("userCountry");
+    const homeInterface = document.getElementById("homeInterface");
+    const logoutBtn = document.getElementById("logoutBtn");
     
     registerBtn.addEventListener("click", () => {
       const name = userNameInput.value.trim();
-      const country = userCountryInput.value.trim();
+      const country = userCountrySelect.value;
       if(name === "" || country === "") {
-        alert("يرجى إدخال الاسم والدولة");
+        alert("يرجى إدخال الاسم واختيار الدولة");
         return;
       }
       localStorage.setItem("userName", name);
@@ -167,35 +288,84 @@
       initApp();
     }
     
+    logoutBtn.addEventListener("click", () => {
+      localStorage.removeItem("userName");
+      localStorage.removeItem("userCountry");
+      location.reload();
+    });
+    
     let myUid = null, partnerUid = null, roomId = null;
     let localStream, remoteStream, peerConnection;
     let callsRef = null;
+    let callStartTime = null, callDurationInterval = null;
+    let partnerName = "", partnerCountry = "";
     const configuration = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
     
-    const remoteVideo = document.getElementById("remoteVideo");
-    const localVideo = document.getElementById("localVideo");
-    const startCameraBtn = document.getElementById("startCameraBtn");
+    const remoteAudio = document.getElementById("remoteAudio");
+    const startAudioBtn = document.getElementById("startAudioBtn");
     const changeUserBtn = document.getElementById("changeUserBtn");
+    const backHomeBtn = document.getElementById("backHomeBtn");
     const searchingIndicator = document.getElementById("searchingIndicator");
+    const callInterface = document.getElementById("callInterface");
+    const partnerInfo = document.getElementById("partnerInfo");
+    const callDurationDisplay = document.getElementById("callDuration");
+    const muteBtn = document.getElementById("muteBtn");
+    const speakerBtn = document.getElementById("speakerBtn");
+    const hangupBtn = document.getElementById("hangupBtn");
+    
+    let isMuted = false, isSpeakerOn = true;
     
     function initApp() {
-      startCameraBtn.style.display = "inline-block";
-      startCameraBtn.addEventListener("click", startCamera);
+      startAudioBtn.style.display = "inline-block";
+      startAudioBtn.addEventListener("click", startAudio);
       changeUserBtn.addEventListener("click", changeUser);
+      backHomeBtn.addEventListener("click", () => {
+        endCall();
+        callInterface.style.display = "none";
+        searchingIndicator.style.display = "none";
+        clearInterval(callDurationInterval);
+        callDurationInterval = null;
+        callDurationDisplay.innerText = "";
+        startAudioBtn.style.display = "inline-block";
+        changeUserBtn.style.display = "none";
+        backHomeBtn.style.display = "none";
+        homeInterface.style.display = "flex";
+      });
+      muteBtn.addEventListener("click", () => {
+        if(localStream) {
+          isMuted = !isMuted;
+          localStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
+          muteBtn.innerHTML = isMuted ? '<i class="fas fa-microphone-slash"></i>' : '<i class="fas fa-microphone"></i>';
+        }
+      });
+      speakerBtn.addEventListener("click", () => {
+        isSpeakerOn = !isSpeakerOn;
+        remoteAudio.volume = isSpeakerOn ? 1 : 0;
+        speakerBtn.innerHTML = isSpeakerOn ? '<i class="fas fa-volume-up"></i>' : '<i class="fas fa-volume-mute"></i>';
+      });
+      hangupBtn.addEventListener("click", () => {
+        endCall();
+        callInterface.style.display = "none";
+        searchingIndicator.style.display = "block";
+        clearInterval(callDurationInterval);
+        callDurationInterval = null;
+        callDurationDisplay.innerText = "";
+      });
     }
     
-    function startCamera() {
-      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    function startAudio() {
+      navigator.mediaDevices.getUserMedia({ audio: true })
       .then(stream => {
         localStream = stream;
-        localVideo.srcObject = stream;
         if (!myUid) {
           myUid = push(ref(database, "available")).key;
         }
         addToAvailable();
         findPartner();
-        startCameraBtn.style.display = "none";
+        startAudioBtn.style.display = "none";
         changeUserBtn.style.display = "inline-block";
+        backHomeBtn.style.display = "inline-block";
+        homeInterface.style.display = "none";
         searchingIndicator.style.display = "block";
       })
       .catch(err => console.error(err));
@@ -217,8 +387,12 @@
       const availableRef = ref(database, "available");
       onChildAdded(availableRef, snapshot => {
         const uid = snapshot.key;
-        if (uid !== myUid && !partnerUid) {
+        const data = snapshot.val();
+        // تأكد من أن المستخدم متاح وحديث (خلال دقيقة واحدة) وأنه ليس أنا
+        if (uid !== myUid && !partnerUid && data && data.timestamp && (Date.now() - data.timestamp) < 60000) {
           partnerUid = uid;
+          partnerName = data.name;
+          partnerCountry = data.country;
           removeFromAvailable(myUid);
           removeFromAvailable(partnerUid);
           roomId = myUid < partnerUid ? myUid + "_" + partnerUid : partnerUid + "_" + myUid;
@@ -242,6 +416,17 @@
         .then(() => sendSignalingMessage(peerConnection.localDescription))
         .catch(err => console.error(err));
       }
+      callInterface.style.display = "flex";
+      partnerInfo.innerText = partnerName + " - " + partnerCountry;
+      callStartTime = new Date();
+      callDurationInterval = setInterval(() => {
+        let now = new Date();
+        let diff = now - callStartTime;
+        let seconds = Math.floor(diff / 1000) % 60;
+        let minutes = Math.floor(diff / (60 * 1000));
+        let formatted = (minutes < 10 ? "0" + minutes : minutes) + ":" + (seconds < 10 ? "0" + seconds : seconds);
+        callDurationDisplay.innerText = formatted;
+      }, 1000);
     }
     
     function createPeerConnection() {
@@ -250,8 +435,7 @@
       peerConnection.addEventListener("track", event => {
         if (!remoteStream) {
           remoteStream = new MediaStream();
-          remoteVideo.srcObject = remoteStream;
-          localVideo.style.display = "none";
+          remoteAudio.srcObject = remoteStream;
         }
         remoteStream.addTrack(event.track);
       });
@@ -287,13 +471,17 @@
       if (peerConnection) { peerConnection.close(); peerConnection = null; }
       if (callsRef) { off(callsRef); callsRef = null; }
       remoteStream = null;
-      remoteVideo.srcObject = null;
+      remoteAudio.srcObject = null;
       partnerUid = null;
       roomId = null;
     }
     
     function changeUser() {
       endCall();
+      clearInterval(callDurationInterval);
+      callDurationInterval = null;
+      callDurationDisplay.innerText = "";
+      callInterface.style.display = "none";
       addToAvailable();
       searchingIndicator.style.display = "block";
       findPartner();
