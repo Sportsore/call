@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تعارف فيديو عشوائي</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body, html { width: 100%; height: 100%; font-family: Arial, sans-serif; }
+    /* صفحة التسجيل */
+    #registration {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+    }
+    #registration img {
+      width: 100px;
+      margin-bottom: 20px;
+    }
+    #registration h1 { margin-bottom: 20px; }
+    #registration input {
+      width: 80%;
+      padding: 10px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 5px;
+    }
+    #registration button {
+      padding: 12px 25px;
+      font-size: 16px;
+      border: none;
+      border-radius: 25px;
+      background: #fff;
+      color: #333;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    /* صفحة التطبيق */
+    #app {
+      display: none;
+      width: 100%;
+      height: 100%;
+      position: relative;
+      background: #000;
+    }
+    #videos {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    #remoteVideo {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    #localVideo {
+      width: 120px;
+      height: 120px;
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      border: 2px solid #fff;
+      border-radius: 8px;
+      object-fit: cover;
+    }
+    #controls {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 3;
+      text-align: center;
+      width: 100%;
+    }
+    #controls button {
+      padding: 12px 25px;
+      margin: 10px;
+      font-size: 16px;
+      border: none;
+      border-radius: 25px;
+      background: #fff;
+      color: #333;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    #controls button:active { transform: scale(0.98); }
+    #searchingIndicator {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #fff;
+      font-size: 18px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="registration">
+    <img src="https://via.placeholder.com/100" alt="Logo">
+    <h1>تسجيل المستخدم</h1>
+    <input type="text" id="userName" placeholder="اسم المستخدم">
+    <input type="text" id="userCountry" placeholder="الدولة">
+    <button id="registerBtn">التالي</button>
+  </div>
+  <div id="app">
+    <div id="videos">
+      <video id="remoteVideo" autoplay playsinline></video>
+      <video id="localVideo" autoplay playsinline muted></video>
+    </div>
+    <div id="controls">
+      <div id="searchingIndicator">جار البحث عن مستخدمين...</div>
+      <button id="startCameraBtn">ابدأ</button>
+      <button id="changeUserBtn" style="display:none;">تغيير المستخدم</button>
+    </div>
+  </div>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-analytics.js";
+    import { getDatabase, ref, set, push, onChildAdded, off, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-database.js";
+    
+    const firebaseConfig = {
+      apiKey: "AIzaSyDHtEWjd44_pcStCaEHj0xGB7ew0TZ5JyA",
+      authDomain: "callvideos-ca091.firebaseapp.com",
+      databaseURL: "https://callvideos-ca091-default-rtdb.firebaseio.com",
+      projectId: "callvideos-ca091",
+      storageBucket: "callvideos-ca091.firebasestorage.app",
+      messagingSenderId: "436150743773",
+      appId: "1:436150743773:web:28fac5d675c7ffe536e134",
+      measurementId: "G-933X277Q5Y"
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const database = getDatabase(app);
+    
+    const registrationDiv = document.getElementById("registration");
+    const appDiv = document.getElementById("app");
+    const registerBtn = document.getElementById("registerBtn");
+    const userNameInput = document.getElementById("userName");
+    const userCountryInput = document.getElementById("userCountry");
+    
+    registerBtn.addEventListener("click", () => {
+      const name = userNameInput.value.trim();
+      const country = userCountryInput.value.trim();
+      if(name === "" || country === "") {
+        alert("يرجى إدخال الاسم والدولة");
+        return;
+      }
+      localStorage.setItem("userName", name);
+      localStorage.setItem("userCountry", country);
+      registrationDiv.style.display = "none";
+      appDiv.style.display = "block";
+      initApp();
+    });
+    
+    if(localStorage.getItem("userName") && localStorage.getItem("userCountry")) {
+      registrationDiv.style.display = "none";
+      appDiv.style.display = "block";
+      initApp();
+    }
+    
+    let myUid = null, partnerUid = null, roomId = null;
+    let localStream, remoteStream, peerConnection;
+    let callsRef = null;
+    const configuration = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+    
+    const remoteVideo = document.getElementById("remoteVideo");
+    const localVideo = document.getElementById("localVideo");
+    const startCameraBtn = document.getElementById("startCameraBtn");
+    const changeUserBtn = document.getElementById("changeUserBtn");
+    const searchingIndicator = document.getElementById("searchingIndicator");
+    
+    function initApp() {
+      startCameraBtn.style.display = "inline-block";
+      startCameraBtn.addEventListener("click", startCamera);
+      changeUserBtn.addEventListener("click", changeUser);
+    }
+    
+    function startCamera() {
+      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      .then(stream => {
+        localStream = stream;
+        localVideo.srcObject = stream;
+        if (!myUid) {
+          myUid = push(ref(database, "available")).key;
+          addToAvailable();
+          findPartner();
+        }
+        startCameraBtn.style.display = "none";
+        changeUserBtn.style.display = "inline-block";
+        searchingIndicator.style.display = "block";
+      })
+      .catch(err => console.error(err));
+    }
+    
+    function addToAvailable() {
+      set(ref(database, "available/" + myUid), { 
+        timestamp: serverTimestamp(),
+        name: localStorage.getItem("userName"),
+        country: localStorage.getItem("userCountry")
+      });
+    }
+    
+    function removeFromAvailable(uid) {
+      remove(ref(database, "available/" + uid));
+    }
+    
+    function findPartner() {
+      const availableRef = ref(database, "available");
+      onChildAdded(availableRef, snapshot => {
+        const uid = snapshot.key;
+        if (uid !== myUid && !partnerUid) {
+          partnerUid = uid;
+          removeFromAvailable(myUid);
+          removeFromAvailable(partnerUid);
+          roomId = myUid < partnerUid ? myUid + "_" + partnerUid : partnerUid + "_" + myUid;
+          searchingIndicator.style.display = "none";
+          startCall();
+        }
+      });
+    }
+    
+    function startCall() {
+      const callsDatabaseRef = ref(database, "calls/" + roomId);
+      callsRef = callsDatabaseRef;
+      onChildAdded(callsRef, snapshot => {
+        const message = snapshot.val();
+        handleSignalingMessage(message);
+      });
+      createPeerConnection();
+      if (myUid < partnerUid) {
+        peerConnection.createOffer()
+        .then(offer => peerConnection.setLocalDescription(offer))
+        .then(() => sendSignalingMessage(peerConnection.localDescription))
+        .catch(err => console.error(err));
+      }
+    }
+    
+    function createPeerConnection() {
+      peerConnection = new RTCPeerConnection(configuration);
+      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+      peerConnection.addEventListener("track", event => {
+        if (!remoteStream) {
+          remoteStream = new MediaStream();
+          remoteVideo.srcObject = remoteStream;
+          localVideo.style.display = "none";
+        }
+        remoteStream.addTrack(event.track);
+      });
+      peerConnection.addEventListener("icecandidate", event => {
+        if (event.candidate) {
+          sendSignalingMessage({ type: "candidate", candidate: event.candidate });
+        }
+      });
+    }
+    
+    function sendSignalingMessage(message) {
+      if (callsRef) push(callsRef, message);
+    }
+    
+    function handleSignalingMessage(message) {
+      if (!peerConnection) createPeerConnection();
+      if (message.type === "offer") {
+        peerConnection.setRemoteDescription(new RTCSessionDescription(message))
+        .then(() => peerConnection.createAnswer())
+        .then(answer => peerConnection.setLocalDescription(answer))
+        .then(() => sendSignalingMessage(peerConnection.localDescription))
+        .catch(err => console.error(err));
+      } else if (message.type === "answer") {
+        peerConnection.setRemoteDescription(new RTCSessionDescription(message))
+        .catch(err => console.error(err));
+      } else if (message.type === "candidate") {
+        peerConnection.addIceCandidate(new RTCIceCandidate(message.candidate))
+        .catch(err => console.error(err));
+      }
+    }
+    
+    function endCall() {
+      if (peerConnection) { peerConnection.close(); peerConnection = null; }
+      if (callsRef) { off(callsRef); callsRef = null; }
+      remoteStream = null;
+      remoteVideo.srcObject = null;
+      partnerUid = null;
+      roomId = null;
+    }
+    
+    function changeUser() {
+      endCall();
+      addToAvailable();
+      searchingIndicator.style.display = "block";
+      findPartner();
+    }
+  </script>
+</body>
+</html>
